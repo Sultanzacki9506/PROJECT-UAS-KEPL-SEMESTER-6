@@ -74,3 +74,8 @@ chatbot_backend/__pycache__/
 *.db
 *.sqlite
 *.sqlite3
+
+# Python virtual environment
+venv/
+env/
+.env/
