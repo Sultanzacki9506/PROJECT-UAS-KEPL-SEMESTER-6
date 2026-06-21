@@ -1,6 +1,6 @@
-name: nodejs_flutter
-description: "Aplikasi Bank Sampah – Kelola sampah jadi berkah"
-publish_to: 'none'
+name: ruang_nada
+description: "Aplikasi manajemen alat musik Ruang Nada"
+publish_to: "none"
 version: 1.0.0+1
 
 environment:
@@ -10,38 +10,28 @@ dependencies:
   flutter:
     sdk: flutter
   cupertino_icons: ^1.0.8
-  
-  # API Request
   http: ^1.1.0
-  
-  # Multipart upload image
   http_parser: ^4.0.2
-  
-  # Ambil gambar dari kamera/gallery
   image_picker: ^1.0.4
-  
-  # Simpan token login JWT
   shared_preferences: ^2.2.2
+  camera: ^0.11.0
+  google_fonts: ^6.1.0
+  shimmer: ^3.0.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
-  
-  # Generate icon aplikasi otomatis
   flutter_launcher_icons: ^0.13.1
 
-# Konfigurasi flutter_launcher_icons (ganti icon)
 flutter_launcher_icons:
   android: true
   ios: true
-  image_path: "assets/icon.png"
-  adaptive_icon_background: "#FFFFFF"     # background putih
-  adaptive_icon_foreground: "assets/icon.png"
+  image_path: "assets/logo.png"
+  adaptive_icon_background: "#1A2A3A"
+  adaptive_icon_foreground: "assets/ruang_nada.png"
 
 flutter:
   uses-material-design: true
-  
-  # Folder assets untuk icon dan gambar lainnya
   assets:
     - assets/

@@ -1,13 +1,13 @@
-// Mengimpor library mysql2 yang mendukung promise dan prepared statements
-const mysql = require('mysql2');
+const mysql = require('mysql2/promise');
 
-// Membuat koneksi pool ke database MySQL
 const pool = mysql.createPool({
-  host: 'localhost',          // Server MySQL berjalan di komputer lokal
-  user: 'root',               // Username default MySQL (Laragon/XAMPP)
-  password: '',               // Password default Laragon kosong, isi jika ada
-  database: 'nodejs_flutter'  // Nama database yang digunakan
+  host: 'localhost',
+  user: 'root',              // sesuaikan user MySQL
+  password: '',              // sesuaikan password
+  database: 'ruang_nada',
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0
 });
 
-// Mengekspor pool dalam mode promise agar bisa pakai async/await
-module.exports = pool.promise();
+module.exports = pool;

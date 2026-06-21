@@ -2,44 +2,35 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'models.dart';
 
 class ApiService {
-  // alamat backend Node.js (ganti sesuai IP laptop kamu)
-  // final String baseUrl = "http://192.168.18.2:3000";
-  // // alamat chatbot Python
-  // final String baseUrlNlp = "http://192.168.18.2:8000";
-final String baseUrl = "http://10.0.2.2:3000";
-final String baseUrlNlp = "http://10.0.2.2:8000";
+  final String baseUrl = "http://192.168.100.222:3000";
+  final String baseUrlNlp = "http://192.168.100.222:8000";
+  final String baseUrlFace = "http://192.168.100.222:5000";
 
-  // nyimpen id sesi biar chatbot ingat obrolan sebelumnya
   String? _sessionId;
+
+  void resetSession() => _sessionId = null;
 
   // ==================== CHATBOT ====================
   Future<String> askChatbot(String message) async {
     try {
-      // siapin data yang dikirim, session_id cuma disertakan kalau sudah ada
       final body = <String, dynamic>{'message': message};
-      if (_sessionId != null) {
-        body['session_id'] = _sessionId;
-      }
-
-      // kirim permintaan POST ke chatbot
+      if (_sessionId != null) body['session_id'] = _sessionId;
       final response = await http.post(
         Uri.parse('$baseUrlNlp/chat'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode(body),
       );
-
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        // kalau chatbot ngasih session_id baru, kita simpan biar obrolan lanjut
         _sessionId = data['session_id'] ?? _sessionId;
         return data['response'];
       } else {
         return "Maaf, server sedang sibuk.";
       }
     } catch (e) {
-      // kalau gagal konek atau ada error lain, kasih tahu user
       return "Gagal terhubung ke chatbot.";
     }
   }
@@ -55,93 +46,148 @@ final String baseUrlNlp = "http://10.0.2.2:8000";
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final token = data['token'];
-        // simpan token di hp biar下次 login gak perlu isi ulang
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('token', token);
+        print('🔐 Login berhasil, token saved');
         return token;
       }
-      // kalau status bukan 200 (misal 400), berarti kredensial salah
+      print(
+        '❌ Login gagal, status: ${response.statusCode}, body: ${response.body}',
+      );
       return null;
     } catch (e) {
-      // lempar exception biar ditangkap di halaman login
+      print('❌ Login exception: $e');
       throw Exception("Gagal login: $e");
     }
   }
 
-  // ==================== FETCH SAMPAH ====================
-  Future<List> fetchSampah() async {
+  // ==================== FACE RECOGNITION ====================
+  Future<Map<String, dynamic>?> recognizeFaceWithConfidence(File image) async {
+    try {
+      var request = http.MultipartRequest(
+        'POST',
+        Uri.parse('$baseUrlFace/recognize-face'),
+      );
+      request.files.add(await http.MultipartFile.fromPath('image', image.path));
+      var streamedResponse = await request.send();
+      var response = await http.Response.fromStream(streamedResponse);
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        String label = data['face_label'] ?? 'Unknown';
+        double confidence = 0.0;
+        if (data['faces'] != null && data['faces'].isNotEmpty) {
+          confidence =
+              (data['faces'][0]['confidence'] as num?)?.toDouble() ?? 0.0;
+        }
+        return {'label': label, 'confidence': confidence};
+      } else if (response.statusCode == 401) {
+        return null;
+      } else {
+        throw Exception("Server error ${response.statusCode}");
+      }
+    } catch (e) {
+      print("Recognize error: $e");
+      return null;
+    }
+  }
+
+  // ==================== CRUD ALAT MUSIK ====================
+
+  Future<List<AlatMusik>> fetchAlatMusik() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('token');
-    // kalau token gak ada, gak bisa lanjut – suruh login ulang
-    if (token == null) throw Exception("Token tidak ditemukan. Silakan login ulang.");
+    if (token == null) {
+      print('❌ Token tidak ditemukan di SharedPreferences');
+      throw Exception("Token tidak ditemukan.");
+    }
+
+    print('🔑 Token: $token');
 
     final response = await http.get(
-      Uri.parse('$baseUrl/sampah'),
+      Uri.parse('$baseUrl/alat-musik'),
       headers: {'Authorization': 'Bearer $token'},
     );
+
+    print('📡 fetchAlatMusik - status: ${response.statusCode}');
+    print('📦 Response body: ${response.body}');
 
     if (response.statusCode == 200) {
-      // parse JSON dan kirim ke dashboard
-      return jsonDecode(response.body);
+      final List data = jsonDecode(response.body);
+      print('✅ Jumlah item dari server: ${data.length}');
+      return data.map((item) => AlatMusik.fromJson(item)).toList();
     } else if (response.statusCode == 401 || response.statusCode == 403) {
-      // token expired atau gak valid
+      print('❌ Token tidak valid atau sesi habis');
       throw Exception("Sesi habis. Silakan login kembali.");
     } else {
-      throw Exception("Gagal mengambil data (${response.statusCode})");
+      throw Exception(
+        "Gagal mengambil data alat musik (${response.statusCode})",
+      );
     }
   }
 
-  // ==================== DELETE SAMPAH ====================
-  Future<void> deleteSampah(int id) async {
+  Future<void> deleteAlatMusik(int id) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('token');
     if (token == null) throw Exception("Token tidak ditemukan.");
-
     final response = await http.delete(
-      Uri.parse('$baseUrl/sampah/$id'),
+      Uri.parse('$baseUrl/alat-musik/$id'),
       headers: {'Authorization': 'Bearer $token'},
     );
-
-    // kalau responsnya bukan 200, artinya gagal hapus
-    if (response.statusCode != 200) {
-      throw Exception("Gagal menghapus data (${response.statusCode})");
+    print('🗑️ deleteAlatMusik($id) status: ${response.statusCode}');
+    if (response.statusCode != 200 && response.statusCode != 204) {
+      throw Exception("Gagal menghapus (${response.statusCode})");
     }
   }
 
-  // ==================== SAVE / UPDATE SAMPAH ====================
-  Future<bool> saveSampah(String nama, File? image, {int? id}) async {
+  Future<bool> saveAlatMusik({
+    required String namaAlat,
+    required String kategori,
+    String deskripsi = '',
+    String asalDaerah = '',
+    required double harga,
+    File? image,
+    int? id,
+  }) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('token');
     if (token == null) throw Exception("Token tidak ditemukan.");
 
-    // tentuin POST (baru) atau PUT (edit)
-    var request = http.MultipartRequest(
-      id == null ? 'POST' : 'PUT',
-      Uri.parse(id == null ? '$baseUrl/sampah' : '$baseUrl/sampah/$id'),
-    );
+    final uri = id == null
+        ? Uri.parse('$baseUrl/alat-musik')
+        : Uri.parse('$baseUrl/alat-musik/$id');
 
+    var request = http.MultipartRequest(id == null ? 'POST' : 'PUT', uri);
     request.headers['Authorization'] = 'Bearer $token';
-    request.fields['nama_sampah'] = nama;
 
-    // kalau ada gambar, lampirkan
+    request.fields['nama_alat'] = namaAlat;
+    request.fields['kategori'] = kategori;
+    request.fields['deskripsi'] = deskripsi;
+    request.fields['asal_daerah'] = asalDaerah;
+    request.fields['harga'] = harga.toString();
+
     if (image != null) {
       request.files.add(
         await http.MultipartFile.fromPath(
-          'pic',
+          'gambar',
           image.path,
           contentType: http.MediaType('image', 'jpeg'),
         ),
       );
     }
 
-    // kirim request
     var streamedResponse = await request.send();
     var response = await http.Response.fromStream(streamedResponse);
 
+    print('📡 saveAlatMusik - status: ${response.statusCode}');
+    print('📦 Response: ${response.body}');
+
     if (response.statusCode == 201 || response.statusCode == 200) {
-      return true;  // berhasil
+      print('✅ Data berhasil disimpan');
+      return true;
     } else {
-      throw Exception("Gagal menyimpan (${response.statusCode}): ${response.body}");
+      throw Exception(
+        "Gagal menyimpan (${response.statusCode}): ${response.body}",
+      );
     }
   }
 }
