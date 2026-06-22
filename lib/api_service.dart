@@ -5,9 +5,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'models.dart';
 
 class ApiService {
-  final String baseUrl = "http://192.168.100.222:3000";
-  final String baseUrlNlp = "http://192.168.100.222:8000";
-  final String baseUrlFace = "http://192.168.100.222:5000";
+  final String baseUrl = "http://192.168.77.72:3000";
+  final String baseUrlNlp = "http://192.168.77.72:8000";
+  final String baseUrlFace = "http://192.168.77.72:5000";
 
   String? _sessionId;
 

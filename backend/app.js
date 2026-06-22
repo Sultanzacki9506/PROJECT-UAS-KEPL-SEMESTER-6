@@ -80,7 +80,7 @@ app.get('/alat-musik', authenticateToken, async (req, res) => {
     // Tambahkan URL gambar
     const data = rows.map(item => ({
       ...item,
-      gambar: item.gambar ? `http://192.168.100.222:3000/uploads/${item.gambar}` : null
+      gambar: item.gambar ? `http://192.168.77.72:3000/uploads/${item.gambar}` : null
     }));
     res.json(data);
   } catch (err) {
@@ -94,7 +94,7 @@ app.get('/alat-musik/:id', authenticateToken, async (req, res) => {
     const [rows] = await db.execute('SELECT * FROM alat_musik WHERE id = ?', [req.params.id]);
     if (rows.length === 0) return res.status(404).json({ message: "Data tidak ditemukan" });
     const data = rows[0];
-    data.gambar = data.gambar ? `http://192.168.100.222:3000/uploads/${data.gambar}` : null;
+    data.gambar = data.gambar ? `http://192.168.77.72:3000/uploads/${data.gambar}` : null;
     res.json(data);
   } catch (err) {
     res.status(500).json({ error: err.message });
